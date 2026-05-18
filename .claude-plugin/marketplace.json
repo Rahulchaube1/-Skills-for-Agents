@@ -1,0 +1,20 @@
+﻿{
+  "name": "addy-Skills for Agents",
+  "owner": {
+    "name": "Addy Osmani"
+  },
+  "metadata": {
+    "description": "Production-grade engineering skills for AI coding agents ΓÇö covering the full software development lifecycle from spec to ship."
+  },
+  "plugins": [
+    {
+      "name": "Skills for Agents",
+      "source": {
+        "source": "github",
+        "repo": "addyosmani/Skills for Agents"
+      },
+      "description": "Production-grade engineering skills covering every phase of software development: spec, plan, build, verify, review, and ship."
+    }
+  ]
+}
+

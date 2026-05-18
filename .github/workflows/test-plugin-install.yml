@@ -53,5 +53,5 @@ jobs:
         run: claude plugin marketplace list
 
       - name: Install plugin
-        run: claude plugin install Skills for Agents@addy-Skills for Agents --scope user
+        run: claude plugin install agent-skills@addy-agent-skills --scope user
 

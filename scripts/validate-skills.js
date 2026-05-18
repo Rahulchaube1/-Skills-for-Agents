@@ -57,6 +57,10 @@ const SKILL_REF_PATTERNS = [
   /→ `([a-z][a-z0-9-]+[a-z0-9])`/g,
 ];
 
+/**
+ * Removes a leading UTF-8 BOM from file content when present.
+ * Some repository files start with BOM and would otherwise fail frontmatter parsing.
+ */
 function stripBom(content) {
   return content.replace(/^\uFEFF/, '');
 }

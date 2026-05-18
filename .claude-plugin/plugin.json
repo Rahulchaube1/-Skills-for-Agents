@@ -1,12 +1,12 @@
-﻿{
-  "name": "Skills for Agents",
-  "description": "Production-grade engineering skills for AI coding agents ΓÇö covering the full software development lifecycle from spec to ship.",
+{
+  "name": "agent-skills",
+  "description": "Production-grade engineering skills for AI coding agents — covering the full software development lifecycle from spec to ship.",
   "version": "1.0.0",
   "author": {
     "name": "Addy Osmani"
   },
-  "homepage": "https://github.com/addyosmani/Skills for Agents",
-  "repository": "https://github.com/addyosmani/Skills for Agents",
+  "homepage": "https://github.com/addyosmani/agent-skills",
+  "repository": "https://github.com/addyosmani/agent-skills",
   "license": "MIT",
   "commands": "./.claude/commands",
   "skills": "./skills",
@@ -16,4 +16,3 @@
     "./agents/test-engineer.md"
   ]
 }
-

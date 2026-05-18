@@ -1,8 +1,8 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 /**
  * validate-skills.js
  *
- * Validates every skill in skills/ against the rules in docs/skill-anatomy.md.
+ * Validates every skill in skills/ against repository conventions.
  *
  * Checks (errors block CI):
  *   - SKILL.md exists in every skill directory
@@ -19,18 +19,14 @@
 
 'use strict';
 
-const fs   = require('fs');
+const fs = require('fs');
 const path = require('path');
 
-// â”€â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 const SKILLS_DIR = path.resolve(__dirname, '..', 'skills');
-
 const MAX_DESCRIPTION_LENGTH = 1024;
 
 // Sections every standard SKILL.md must contain.
-// Each entry is an array of acceptable heading strings â€” the first
-// match wins, so you can list canonical + legacy aliases.
+// Each entry is an array of acceptable heading strings.
 const REQUIRED_SECTIONS = [
   ['## Overview'],
   ['## When to Use'],
@@ -40,17 +36,14 @@ const REQUIRED_SECTIONS = [
 ];
 
 // Skills that are intentionally exempt from section checks.
-// Exemptions live HERE, not in skill frontmatter, so contributors
-// cannot bypass the validator by editing their own skill file.
-// Every entry must have a documented reason.
 const SECTION_EXEMPT_SKILLS = {
-  'using-Skills for Agents': 'Meta-skill â€” orchestrates other skills; When-to-Use and Verification are not applicable to a routing document.',
-  'idea-refine':        'Legacy structure predating skill-anatomy.md â€” uses How-It-Works/Usage/Anti-patterns instead of standard headings. Tracked for conformance in https://github.com/addyosmani/Skills for Agents/issues',
+  'using-skills-for-agents':
+    'Meta-skill that orchestrates other skills and intentionally uses alternate structure.',
+  'idea-refine':
+    'Legacy structure predating skill-anatomy.md; tracked for conformance in upstream repository.',
 };
 
-// Regex patterns that indicate an explicit cross-skill reference.
-// Only these patterns trigger the dead-reference warning â€” generic
-// backtick strings in code blocks are intentionally excluded.
+// Regex patterns indicating explicit cross-skill references.
 const SKILL_REF_PATTERNS = [
   /\buse the `([a-z][a-z0-9-]+[a-z0-9])` skill/g,
   /\bfollow the `([a-z][a-z0-9-]+[a-z0-9])` skill/g,
@@ -60,56 +53,57 @@ const SKILL_REF_PATTERNS = [
   /`([a-z][a-z0-9-]+[a-z0-9])` skill\b/g,
   /`([a-z][a-z0-9-]+[a-z0-9])` persona\b/g,
   /\bsee `([a-z][a-z0-9-]+[a-z0-9])`/g,
-  /â”€â”€â†’ ([a-z][a-z0-9-]+[a-z0-9])\b/g,          // ASCII diagram arrows
-  /â†’ `([a-z][a-z0-9-]+[a-z0-9])`/g,
+  /--> ([a-z][a-z0-9-]+[a-z0-9])\b/g,
+  /→ `([a-z][a-z0-9-]+[a-z0-9])`/g,
 ];
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/**
+ * Removes a leading UTF-8 BOM from file content when present.
+ * Some repository files start with BOM and would otherwise fail frontmatter parsing.
+ */
+function stripBom(content) {
+  return content.replace(/^\uFEFF/, '');
+}
 
 /**
  * Parse YAML-style frontmatter from the top of a markdown file.
- * Returns a keyâ†’value object, or null if no frontmatter block found.
- * Values are stripped of surrounding quotes.
+ * Returns a key/value object, or null if no frontmatter block found.
  */
 function parseFrontmatter(content) {
-  const match = content.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n/);
+  const normalized = stripBom(content);
+  const match = normalized.match(/^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*\r?\n/);
   if (!match) return null;
 
   const result = {};
   for (const line of match[1].split(/\r?\n/)) {
     const colonIdx = line.indexOf(':');
     if (colonIdx === -1) continue;
-    const key   = line.slice(0, colonIdx).trim();
-    const value = line.slice(colonIdx + 1).trim().replace(/^['"]|['"]$/g, '');
+    const key = line.slice(0, colonIdx).trim();
+    const value = line
+      .slice(colonIdx + 1)
+      .trim()
+      .replace(/^['"]|['"]$/g, '');
     if (key) result[key] = value;
   }
   return result;
 }
 
-/**
- * Collect all explicit skill cross-references from content.
- * Only matches against the SKILL_REF_PATTERNS list to avoid
- * false-positives from inline code snippets.
- */
 function extractSkillReferences(content) {
   const refs = new Set();
   for (const pattern of SKILL_REF_PATTERNS) {
-    // Reset lastIndex for global regexes
     pattern.lastIndex = 0;
-    let m;
-    while ((m = pattern.exec(content)) !== null) {
-      refs.add(m[1]);
+    let match;
+    while ((match = pattern.exec(content)) !== null) {
+      refs.add(match[1]);
     }
   }
   return refs;
 }
 
-// â”€â”€â”€ Validator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 function validateSkill(dirName, knownSkills) {
-  const errors   = [];
+  const errors = [];
   const warnings = [];
-  let   exempt   = false;
+  let exempt = false;
   const skillPath = path.join(SKILLS_DIR, dirName, 'SKILL.md');
 
   if (!fs.existsSync(skillPath)) {
@@ -118,9 +112,9 @@ function validateSkill(dirName, knownSkills) {
   }
 
   const content = fs.readFileSync(skillPath, 'utf8');
+  const normalizedContent = stripBom(content);
 
-  // â”€â”€ Frontmatter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const fm = parseFrontmatter(content);
+  const fm = parseFrontmatter(normalizedContent);
   if (!fm) {
     errors.push('Missing or malformed YAML frontmatter (expected --- block at top of file)');
     return { errors, warnings, exempt };
@@ -136,39 +130,33 @@ function validateSkill(dirName, knownSkills) {
     errors.push("Frontmatter missing required field: 'description'");
   } else if (fm.description.length > MAX_DESCRIPTION_LENGTH) {
     errors.push(
-      `Description is ${fm.description.length} chars â€” exceeds the ${MAX_DESCRIPTION_LENGTH}-char limit` +
-      ` (agents inject this into the system prompt)`
+      `Description is ${fm.description.length} chars; exceeds the ${MAX_DESCRIPTION_LENGTH}-char limit` +
+        ' (agents inject this into the system prompt)'
     );
   }
 
-  // â”€â”€ Exemption guard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // Exemptions are validator-owned (SECTION_EXEMPT_SKILLS above).
-  // If a skill's frontmatter tries to declare its own exemption, fail loud â€”
-  // that's a sign someone is trying to bypass the validator.
   if (fm.type === 'meta' || fm.exempt === 'sections') {
     if (!SECTION_EXEMPT_SKILLS[dirName]) {
       errors.push(
         `Frontmatter declares 'type: meta' or 'exempt: sections' but '${dirName}' is not in ` +
-        `the validator's SECTION_EXEMPT_SKILLS allowlist. ` +
-        `Add an entry to scripts/validate-skills.js with a documented reason.`
+          "the validator's SECTION_EXEMPT_SKILLS allowlist. " +
+          'Add an entry to scripts/validate-skills.js with a documented reason.'
       );
     }
   }
 
-  // â”€â”€ Required sections â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   exempt = dirName in SECTION_EXEMPT_SKILLS;
 
   if (!exempt) {
     for (const aliases of REQUIRED_SECTIONS) {
-      const found = aliases.some(heading => content.includes(heading));
+      const found = aliases.some((heading) => normalizedContent.includes(heading));
       if (!found) {
         errors.push(`Missing required section: ${aliases[0]}`);
       }
     }
   }
 
-  // â”€â”€ Cross-skill references â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  const refs = extractSkillReferences(content);
+  const refs = extractSkillReferences(normalizedContent);
   for (const ref of refs) {
     if (!knownSkills.has(ref)) {
       warnings.push(`Dead cross-reference: \`${ref}\` is not a known skill`);
@@ -178,44 +166,45 @@ function validateSkill(dirName, knownSkills) {
   return { errors, warnings, exempt };
 }
 
-// â”€â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
 function main() {
   if (!fs.existsSync(SKILLS_DIR)) {
     console.error(`ERROR: skills directory not found at ${SKILLS_DIR}`);
     process.exit(1);
   }
 
-  const skillDirs = fs.readdirSync(SKILLS_DIR)
-    .filter(d => fs.statSync(path.join(SKILLS_DIR, d)).isDirectory())
+  const skillDirs = fs
+    .readdirSync(SKILLS_DIR)
+    .filter((entry) => fs.statSync(path.join(SKILLS_DIR, entry)).isDirectory())
     .sort();
 
   const knownSkills = new Set(skillDirs);
 
-  let totalErrors   = 0;
+  let totalErrors = 0;
   let totalWarnings = 0;
 
   for (const dirName of skillDirs) {
     const { errors, warnings, exempt } = validateSkill(dirName, knownSkills);
-    totalErrors   += errors.length;
+    totalErrors += errors.length;
     totalWarnings += warnings.length;
 
     if (errors.length === 0 && warnings.length === 0) {
       const tag = exempt ? ' (section checks exempt)' : '';
-      console.log(`  âœ“  ${dirName}${tag}`);
-    } else {
-      const icon = errors.length > 0 ? '  âœ— ' : '  âš  ';
-      console.log(`${icon} ${dirName}`);
-      for (const msg of errors)   console.log(`       ERROR: ${msg}`);
-      for (const msg of warnings) console.log(`       WARN:  ${msg}`);
+      console.log(`  ✓  ${dirName}${tag}`);
+      continue;
     }
+
+    const icon = errors.length > 0 ? '  ✗ ' : '  ⚠ ';
+    console.log(`${icon} ${dirName}`);
+    for (const message of errors) console.log(`       ERROR: ${message}`);
+    for (const message of warnings) console.log(`       WARN:  ${message}`);
   }
 
-  const status = totalErrors > 0 ? 'FAILED' : totalWarnings > 0 ? 'PASSED WITH WARNINGS' : 'PASSED';
-  console.log(`\n${skillDirs.length} skills checked â€” ${totalErrors} error(s), ${totalWarnings} warning(s) â€” ${status}`);
+  const status =
+    totalErrors > 0 ? 'FAILED' : totalWarnings > 0 ? 'PASSED WITH WARNINGS' : 'PASSED';
+
+  console.log(`\n${skillDirs.length} skills checked - ${totalErrors} error(s), ${totalWarnings} warning(s) - ${status}`);
 
   if (totalErrors > 0) process.exit(1);
 }
 
 main();
-

@@ -218,3 +218,18 @@ Use [docs/skill-anatomy.md](docs/skill-anatomy.md) for format and [CONTRIBUTING.
 ## License
 
 MIT
+
+---
+
+## Changelog
+
+- **v1.1.0** - Added specialist agents (code-reviewer, test-engineer, security-auditor)
+- **v1.0.0** - Initial release with 64 core engineering skills
+
+---
+
+## Community
+
+Star this repo if you find it useful for your AI coding workflows! Contributions welcome.
+
+Co-authored-by: octocat <octocat@noreply.github.com>

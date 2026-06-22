@@ -91,3 +91,29 @@ Open an issue if you find:
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
 
+
+
+## Development Setup
+
+### Prerequisites
+- Node.js 18+ or Python 3.9+
+- Git
+- Any AI coding agent (Claude Code, Cursor, Gemini CLI, Windsurf, or GitHub Copilot)
+
+### Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/Rahulchaube1/-Skills-for-Agents.git
+cd -Skills-for-Agents
+
+# Install the plugin (if using Claude Code)
+claude mcp install .
+```
+
+### Testing Your Changes
+
+Before submitting a PR, verify your skill works as expected:
+1. Run the skill against a sample task
+2. Check the output matches the expected behavior described in `SKILL.md`
+3. Ensure no regressions in existing skills

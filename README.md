@@ -195,3 +195,17 @@ Made with ❤️ by [Rahul Chaube](https://github.com/Rahulchaube1)
 **If this helped you, please ⭐ star the repo — it means the world!**
 
 </div>
+
+
+---
+
+## 📋 Changelog
+
+### v1.1.0
+- Added workflow diagram and badge shields
+- Improved documentation structure
+- Added sponsor and funding support
+
+### v1.0.0
+- Initial release with core agent skills
+- Support for Claude Code, Cursor, Gemini CLI, Windsurf, GitHub Copilot
